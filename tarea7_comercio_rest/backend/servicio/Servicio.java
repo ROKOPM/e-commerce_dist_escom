@@ -165,9 +165,6 @@ public class Servicio extends Application
   {
     try
     {
-      Connection conexion = pool.getConnection();
-      int id_usuario = 0;
-
       if (usuario.email == null || usuario.email.equals(""))
         throw new Exception("Se debe ingresar el email");
 
@@ -182,6 +179,9 @@ public class Servicio extends Application
 
       if (usuario.fecha_nacimiento == null)
         throw new Exception("Se debe ingresar la fecha de nacimiento");
+
+      Connection conexion = pool.getConnection();
+      int id_usuario = 0;
 
       try
       {
@@ -228,7 +228,7 @@ public class Servicio extends Application
           }
 
           if (id_usuario == 0)
-            return Response.status(400).entity(j.writeValueAsString(new Respuesta("No se pudo obtener el ID del usuario"))).build();
+            throw new Exception("No se pudo obtener el ID del usuario");
         }
         finally
         {
@@ -279,11 +279,11 @@ public class Servicio extends Application
     {
       Connection conexion= pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         PreparedStatement stmt_1 = conexion.prepareStatement("SELECT a.email,a.nombre,a.apellido_paterno,a.apellido_materno,a.fecha_nacimiento,a.telefono,a.genero,b.foto FROM usuarios a LEFT OUTER JOIN fotos_usuarios b ON a.id_usuario=b.id_usuario WHERE a.id_usuario=?");
         try
         {
@@ -339,25 +339,25 @@ public class Servicio extends Application
     {
       Connection conexion= pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
-      if (usuario.email == null || usuario.email.equals(""))
-        throw new Exception("Se debe ingresar el email");
-
-      if (usuario.nombre == null || usuario.nombre.equals(""))
-        throw new Exception("Se debe ingresar el nombre");
-
-      if (usuario.apellido_paterno == null || usuario.apellido_paterno.equals(""))
-        throw new Exception("Se debe ingresar el apellido paterno");
-
-      if (usuario.fecha_nacimiento == null)
-        throw new Exception("Se debe ingresar la fecha de nacimiento");
-
-      conexion.setAutoCommit(false);
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
+        if (usuario.email == null || usuario.email.equals(""))
+          throw new Exception("Se debe ingresar el email");
+
+        if (usuario.nombre == null || usuario.nombre.equals(""))
+          throw new Exception("Se debe ingresar el nombre");
+
+        if (usuario.apellido_paterno == null || usuario.apellido_paterno.equals(""))
+          throw new Exception("Se debe ingresar el apellido paterno");
+
+        if (usuario.fecha_nacimiento == null)
+          throw new Exception("Se debe ingresar la fecha de nacimiento");
+
+        conexion.setAutoCommit(false);
+
         PreparedStatement stmt_1 = conexion.prepareStatement("UPDATE usuarios SET email=?,nombre=?,apellido_paterno=?,apellido_materno=?,fecha_nacimiento=?,telefono=?,genero=? WHERE id_usuario=?");
 
         try
@@ -392,7 +392,7 @@ public class Servicio extends Application
           stmt_1.close();
         }
 
-        if (!usuario.password.equals(""))
+        if (usuario.password != null && !usuario.password.equals(""))
         {
           PreparedStatement stmt_2 = conexion.prepareStatement("UPDATE usuarios SET password=? WHERE id_usuario=?");
 
@@ -465,11 +465,11 @@ public class Servicio extends Application
     {
       Connection conexion= pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         PreparedStatement stmt_1 = conexion.prepareStatement("SELECT 1 FROM usuarios WHERE id_usuario=?");
 
         try
@@ -494,16 +494,53 @@ public class Servicio extends Application
         }
         conexion.setAutoCommit(false);
 
-        PreparedStatement stmt_0 = conexion.prepareStatement("DELETE FROM carrito_compra WHERE id_usuario=?");
+        PreparedStatement stmt_0 = conexion.prepareStatement("SELECT id_articulo,cantidad FROM carrito_compra WHERE id_usuario=? FOR UPDATE");
 
         try
         {
           stmt_0.setInt(1,id_usuario);
-          stmt_0.executeUpdate();
+
+          ResultSet rs = stmt_0.executeQuery();
+          try
+          {
+            while (rs.next())
+            {
+              int id_articulo = rs.getInt(1);
+              int cantidad_carrito = rs.getInt(2);
+
+              PreparedStatement stmt_00 = conexion.prepareStatement("UPDATE stock SET cantidad=cantidad+? WHERE id_articulo=?");
+              try
+              {
+                stmt_00.setInt(1,cantidad_carrito);
+                stmt_00.setInt(2,id_articulo);
+                stmt_00.executeUpdate();
+              }
+              finally
+              {
+                stmt_00.close();
+              }
+            }
+          }
+          finally
+          {
+            rs.close();
+          }
         }
         finally
         {
           stmt_0.close();
+        }
+
+        PreparedStatement stmt_00 = conexion.prepareStatement("DELETE FROM carrito_compra WHERE id_usuario=?");
+
+        try
+        {
+          stmt_00.setInt(1,id_usuario);
+          stmt_00.executeUpdate();
+        }
+        finally
+        {
+          stmt_00.close();
         }
 
         PreparedStatement stmt_2 = conexion.prepareStatement("DELETE FROM fotos_usuarios WHERE id_usuario=?");
@@ -560,23 +597,23 @@ public class Servicio extends Application
       Connection conexion = pool.getConnection();
       int id_articulo = 0;
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
-      if (articulo.nombre == null || articulo.nombre.trim().equals(""))
-        throw new Exception("Se debe ingresar el nombre del artículo");
-
-      if (articulo.descripcion == null || articulo.descripcion.trim().equals(""))
-        throw new Exception("Se debe ingresar la descripción del artículo");
-
-      if (articulo.precio == null || articulo.precio.compareTo(BigDecimal.ZERO) <= 0)
-        throw new Exception("El precio debe ser mayor a cero");
-
-      if (articulo.cantidad == null || articulo.cantidad < 0)
-        throw new Exception("La cantidad no puede ser negativa");
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
+        if (articulo.nombre == null || articulo.nombre.trim().equals(""))
+          throw new Exception("Se debe ingresar el nombre del artículo");
+
+        if (articulo.descripcion == null || articulo.descripcion.trim().equals(""))
+          throw new Exception("Se debe ingresar la descripción del artículo");
+
+        if (articulo.precio == null || articulo.precio.compareTo(BigDecimal.ZERO) <= 0)
+          throw new Exception("El precio debe ser mayor a cero");
+
+        if (articulo.cantidad == null || articulo.cantidad < 0)
+          throw new Exception("La cantidad no puede ser negativa");
+
         conexion.setAutoCommit(false);
 
         PreparedStatement stmt_1 = conexion.prepareStatement("INSERT INTO stock(id_articulo,nombre,descripcion,precio,cantidad) VALUES (0,?,?,?,?)",Statement.RETURN_GENERATED_KEYS);
@@ -652,11 +689,11 @@ public class Servicio extends Application
     {
       Connection conexion = pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         if (palabra == null)
           palabra = "";
 
@@ -714,14 +751,14 @@ public class Servicio extends Application
     {
       Connection conexion = pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
-      if (cantidad <= 0)
-        throw new Exception("La cantidad a comprar debe ser mayor a cero");
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
+        if (cantidad <= 0)
+          throw new Exception("La cantidad a comprar debe ser mayor a cero");
+
         conexion.setAutoCommit(false);
 
         PreparedStatement stmt_1 = conexion.prepareStatement("SELECT cantidad FROM stock WHERE id_articulo=? FOR UPDATE");
@@ -843,11 +880,11 @@ public class Servicio extends Application
     {
       Connection conexion = pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         PreparedStatement stmt_1 = conexion.prepareStatement("SELECT s.id_articulo,f.foto,s.nombre,s.descripcion,s.precio,c.cantidad,(s.precio*c.cantidad) AS costo FROM carrito_compra c INNER JOIN stock s ON c.id_articulo=s.id_articulo LEFT OUTER JOIN fotos_articulos f ON s.id_articulo=f.id_articulo WHERE c.id_usuario=? ORDER BY s.nombre");
         try
         {
@@ -900,11 +937,11 @@ public class Servicio extends Application
     {
       Connection conexion = pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         conexion.setAutoCommit(false);
         int cantidad_carrito = 0;
 
@@ -984,11 +1021,11 @@ public class Servicio extends Application
     {
       Connection conexion = pool.getConnection();
 
-      if (!verifica_acceso(conexion,id_usuario,token))
-        return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
-
       try
       {
+        if (!verifica_acceso(conexion,id_usuario,token))
+          return Response.status(400).entity(j.writeValueAsString(new Respuesta("Acceso denegado"))).build();
+
         conexion.setAutoCommit(false);
 
         PreparedStatement stmt_1 = conexion.prepareStatement("SELECT id_articulo,cantidad FROM carrito_compra WHERE id_usuario=? FOR UPDATE");
