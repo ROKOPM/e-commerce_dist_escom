@@ -59,3 +59,12 @@ curl -k -X DELETE "$DOMINIO/Servicio/rest/ws/elimina_articulo_carrito_compra?id_
 ```bash
 curl -k -X DELETE "$DOMINIO/Servicio/rest/ws/elimina_carrito_compra?id_usuario=$ID_USUARIO&token=$TOKEN"
 ```
+
+## RF-BE-3.3 compra_articulo sin stock suficiente
+
+## Esta prueba valida que el servicio regrese HTTP 400 cuando la cantidad solicitada es mayor a la existencia del artículo.
+
+```bash
+curl -k -X PUT "$DOMINIO/Servicio/rest/ws/compra_articulo?id_usuario=$ID_USUARIO&id_articulo=1&cantidad=99999&token=$TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
