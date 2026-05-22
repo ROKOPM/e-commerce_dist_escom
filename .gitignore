@@ -1,0 +1,31 @@
+# Archivos compilados Java
+*.class
+*.war
+*.jar
+
+# Carpetas generadas
+build/
+dist/
+target/
+out/
+
+# Configuración sensible
+.env
+*.p12
+*.pem
+*.key
+*.crt
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Capturas pesadas o temporales
+docs/capturas/tmp/
