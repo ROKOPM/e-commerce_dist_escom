@@ -61,7 +61,7 @@ function sha256(ascii) {
     for (i = 0; i < 64; i++) {
       var w15 = w[i - 15], w2 = w[i - 2];
       var a = hash[0], e = hash[4];
-      var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e & hash[5]) ^ ((~e) & hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0;
+      var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e & hash[5]) ^ ((~e) & hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0);
       var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
       hash = [(temp1 + temp2) | 0].concat(hash);
       hash[4] = (hash[4] + temp1) | 0;
@@ -102,6 +102,13 @@ function login() {
       ver("menu");
     } else alert(JSON.stringify(result));
   });
+}
+
+function salir() {
+  id_usuario = null;
+  token = null;
+  limpiaLogin();
+  ver("login");
 }
 
 function altaUsuario() {
@@ -188,7 +195,6 @@ function borraUsuario() {
 }
 
 function altaArticulo() {
-  const cliente = new WSClient(URL);
   const articulo = {
     nombre: get("articulo_nombre").value,
     descripcion: get("articulo_descripcion").value,
@@ -196,10 +202,23 @@ function altaArticulo() {
     cantidad: get("articulo_cantidad").value !== "" ? Number(get("articulo_cantidad").value) : null,
     foto: fotoArticulo
   };
-  cliente.post("alta_articulo?id_usuario=" + id_usuario + "&token=" + encodeURIComponent(token), articulo, function(code, result) {
-    if (code === 200) { alert("Artículo registrado correctamente"); limpiaArticulo(); }
-    else alert(JSON.stringify(result));
-  });
+
+  fetch(`${URL}/alta_articulo?id_usuario=${id_usuario}&token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(articulo)
+  })
+  .then(respuesta => respuesta.json().then(data => {
+    if (respuesta.status === 200) {
+      alert("Artículo registrado correctamente");
+      limpiaArticulo();
+    } else {
+      alert(JSON.stringify(data));
+    }
+  }))
+  .catch(error => alert("Error: " + error.message));
 }
 
 function consultaArticulos() {
@@ -229,10 +248,20 @@ function consultaArticulos() {
 
 function compraArticulo(id_articulo) {
   const cantidad = Number(get("cantidad_" + id_articulo).value || 1);
+
+  if (cantidad <= 0) {
+    alert("La cantidad debe ser mayor a cero");
+    return;
+  }
+
   const cliente = new WSClient(URL);
   cliente.put("compra_articulo", { id_usuario, id_articulo, cantidad, token }, {}, function(code, result) {
-    if (code === 200) { alert("Artículo agregado al carrito"); consultaArticulos(); }
-    else alert(JSON.stringify(result));
+    if (code === 200) {
+      alert("Artículo agregado al carrito");
+      consultaArticulos();
+    } else {
+      alert(JSON.stringify(result));
+    }
   });
 }
 
