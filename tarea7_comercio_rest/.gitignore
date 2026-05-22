@@ -1,0 +1,25 @@
+# Compilados Java
+*.class
+*.war
+*.jar
+
+# Credenciales / certificados
+.env
+*.p12
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporales
+*.tmp
